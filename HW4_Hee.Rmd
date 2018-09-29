@@ -1,0 +1,300 @@
+---
+title: "< STAT-5361 > HW#4-Exercises 3.3"
+author: "Hee-Seung, Kim"
+date: "September 28, 2018"
+output: pdf_document
+fontsize: 11pt
+documentclass: article
+knit: "bookdown::render_book('HW4_2_Hee.Rmd','bookdown::pdf_document2')"
+papersize: letter
+biblio-style: asa 
+---
+
+
+\newpage
+# Exercises 3.3.2
+## (a)
+```{r, echo=TRUE}
+data2<- c(3.91,4.85,2.28,4.06,3.7,4.04,5.46,3.53,2.28,1.96,2.53,3.88,2.22,3.47,
+          4.82,2.46,2.99,2.54,0.52);
+a.value = seq(-pi, pi, length.out = 200);
+
+m <- length(a.value)
+y <- rep(0,m)
+
+for (i in 1:m) {
+  y[i] <- -length(data2)*log(2*pi) + sum(log(1-cos(data2-a.value[i])))
+}
+plot(a.value, y, xlab="parameter", ylab="log-likelihood", type="l");
+```
+
+
+## (b)
+$$\begin{aligned}
+E[x|\theta] &=\int_{0}^{2\pi}x\frac{1-cos(x-\theta)}{2\pi}dx\\
+ &=\frac{x^2}{4\pi}|_{0}^{2\pi}-\frac{xsin(x-\theta)}{2\pi}|_{0}^{2\pi}+\int_{0}^{2\pi}\frac{sin(x-\theta)}{2\pi}dx\\
+ &=\pi-sin(2\pi-\theta)-\frac{cos(x-\theta)}{2\pi}|_{0}^{2\pi}\\
+ &=\pi-sin(2\pi-\theta)-\frac{cos(2\pi-\theta)}{2\pi}+\frac{cos\theta}{2\pi}\\
+ &=\pi-sin(2\pi-\theta)=\pi+sin(\theta moment)\\
+\\
+&\therefore {\theta}{moment}= sin^{-1}(E[x|\theta] - \pi)=0.09539
+\end{aligned}$$ 
+
+
+## (c)-(d)
+```{r, echo=TRUE}
+data2 <- c(3.91,4.85,2.28,4.06,3.7,4.04,5.46,3.53,2.28,1.96,2.53,3.88,2.22,3.47,
+           4.82,2.46,2.99,2.54,0.52);
+mme <- asin(sum(data2)/length(data2)-pi)
+
+mle.trig <- function(sample, int.value,  lower=-10000, upper=10000) {
+  n = length(sample);
+  neg.log.lik <- function(a) {
+    return( n*log(2*pi) - sum(log(1-cos(sample-a))));
+  }
+   
+  minus.score <- function(a) {
+    return( sum (sin(sample-a) / (1-cos(sample-a))  ));
+  }
+  
+  hess.f <- function(a) {
+    return( matrix(sum (1/ (1-cos(sample-a))  ),nrow=1));
+  }
+  ## MLE  
+  a.est = nlminb(start = int.value, neg.log.lik, gradient=minus.score,
+                 hessian = hess.f, lower=lower,upper=upper);
+  return(a.est);
+}
+
+trig_MME <- mle.trig(data2,mme)
+trig_Z1 <- mle.trig(data2,-2.7)
+trig_Z2 <- mle.trig(data2,2.7)
+
+trig_par <- c(trig_MME$par,trig_Z1$par,trig_Z2$par)
+trig_obj <- -1*c(trig_MME$objective,trig_Z1$objective,trig_Z2$objective)
+trig_iter <- c(trig_MME$iteration,trig_Z1$iteration,trig_Z2$iteration)
+
+TRIG <- rbind(trig_par,trig_obj,trig_iter)
+TRIG
+```
+------------------------
+With $${\theta}{moment}=0.05939$$, the golbal maximum is reached, and the MLE for $$\theta$$ is found to be 0.003118.
+With -2.7 and 2.7 as starting points, the MLE for $$\theta$$ is found to be -2.66886 and 2.848415 respectively.
+------------------------
+
+
+## (e)
+```{r, echo=TRUE}
+mle_trigs <- rep(0,200)
+for (i in 1:200) {
+  mle_trigs[i] <- mle.trig(data2,a.value[i])$par
+}
+
+plot(a.value,mle_trigs,xlab="Initial Value", ylab="MLE")
+
+mle_trigs <- floor(mle_trigs*1000000)/1000000
+
+SetAtt <- cbind(aggregate(a.value, list(mle_trigs), min),aggregate(a.value,
+               list(mle_trigs), max)[,2])
+colnames(SetAtt) <- c("Unique Outcome","From","To")
+a.value
+```
+------------------------
+For 200 equally spaced starting points bwtween $$-\pi$$ and $$\pi$$, we have grouped the points with each group
+corresponding to each unique outcome of the optimization. There are total 18 groups with 18 different
+outcomes of the optimization.
+------------------------
+
+
+\newpage
+# Exercises 3.3.3
+
+## (a)
+```{r, echo=TRUE}
+t <- c(0,8,28,41,63,69,97,117,135,154)
+x <- c(2,47,192,256,768,896,1120,896,1184,1024)
+f <- expression(2*K/(2+(K-2)*exp(-r*t)))
+
+df <- function(K,r,t){
+  dfk <- D(f,"K")
+  dfr <- D(f,"r")
+  K <- K 
+  r <- r 
+  t <- t
+  a <- eval(dfk)
+  b <- eval(dfr)
+  c <- array(c(a,b),c(1,2))
+  return(c)
+}
+
+Df <- function(K,r){
+  a <- K
+  b <- r
+  m <- df(a,b,t[1])
+  for(i in 2:10){
+    c <- df(a,b,t[i])
+    m <- rbind(m,c)
+  }
+  return(m)
+}
+
+Z <- function(K,r){
+  a <- c()
+  for(i in 1:10){
+    a[i] <- x[i] - 2*K/(2+(K-2)*exp(-r*t[i]))
+  }
+  m <- array(a,c(10,1))
+  return(m)
+}
+
+theta <- matrix(c(1200,0.2),nrow=2)
+delta <- matrix(c(1,1),nrow=2)
+
+while(crossprod(delta,delta)>=0.001){
+  theta1 <- theta 
+  a <- Df(theta[1,1],theta[2,1])
+  z <- Z(theta[1,1],theta[2,1])
+  theta <- theta + solve(t(a)%*%a)%*%t(a)%*%z
+  delta <- theta - theta1
+}
+
+a.est <- theta
+print(a.est)
+```
+
+
+## (b)
+```{r, echo=TRUE}
+f <- function(K,r){
+  return(sum((x-2*K/(2+(K-2)*exp(-r*t)))^2))
+}
+
+z <- matrix(0,100,100,byrow=T)
+for (i in 1:100){
+  for (j in 1:100){
+    K <- 600 + 8*j
+    r <- 0 + 0.01*i
+    z[j,i] <- f(K,r)
+  }
+}
+K <- seq(600,1400,length.out = 100)
+r <- seq(0,1,length.out = 100)
+contour(K,r,z,xlab="K",ylab="r")
+```
+
+## (c)
+```{r, echo=TRUE}
+t <- c(0,8,28,41,63,69,97,117,135,154)
+x <- c(2,47,192,256,768,896,1120,896,1184,1024)
+f <- expression(2*K/(2+(K-2)*exp(-r*t)))
+
+df <- function(K,r,t){
+  dfk <- D(f,"K")
+  dfr <- D(f,"r")
+  K <- K 
+  r <- r 
+  t <- t
+  a <- eval(dfk)
+  b <- eval(dfr)
+  c <- array(c(a,b),c(1,2))
+  return(c)
+}
+
+Df <- function(K,r){
+  a <- K
+  b <- r
+  m <- df(a,b,t[1])
+  for(i in 2:10){
+    c <- df(a,b,t[i])
+    m <- rbind(m,c)
+  }
+  return(m)
+}
+
+Z <- function(K,r){
+  a <- c()
+  for(i in 1:10){
+    a[i] <- x[i] - 2*K/(2+(K-2)*exp(-r*t[i]))
+  }
+  m <- array(a,c(10,1))
+  return(m)
+}
+
+theta <- matrix(c(1200,0.2),nrow=2)
+delta <- matrix(c(1,1),nrow=2)
+
+while(crossprod(delta,delta)>=0.001){
+  theta1 <- theta 
+  a <- Df(theta[1,1],theta[2,1])
+  z <- Z(theta[1,1],theta[2,1])
+  theta <- theta + solve(t(a)%*%a)%*%t(a)%*%z
+  delta <- theta - theta1
+}
+
+a.est <- theta
+print(a.est)
+
+
+
+l <- expression(log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*2+2*(K-2)*exp(-r*0))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*47+47*(K-2)*exp(-r*8))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*192+192*(K-2)*exp(-r*28))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*256+256*(K-2)*exp(-r*41))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*768+768*(K-2)*exp(-r*63))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*896+896*(K-2)*exp(-r*69))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*1120+1120*(K-2)*exp(-r*97))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*896+896*(K-2)*exp(-r*117))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*1185+1184*(K-2)*exp(-r*135))/(2*K)))^2/(2*sigema^2)+
+                  log(1/(sqrt(2*pi)*sigema))-
+                  (log((2*1024+1024*(K-2)*exp(-r*154))/(2*K)))^2/(2*sigema^2))
+
+dl <- function(beita){
+  dlk <- D(l,"K")
+  dlr <- D(l,"r")
+  dlsigema <- D(l,"sigema")
+  K <- beita[1] 
+  r <- beita[2] 
+  sigema <- beita[3]
+  a <- eval(dlk)
+  b <- eval(dlr)
+  c <- eval(dlsigema)
+  return(c(a,b,c))
+}
+
+ddl <- function(beita){
+  dlkk <- D(D(l,"K"),"K")
+  dlkr <- D(D(l,"K"),"r")
+  dlksigema <- D(D(l,"K"),"sigema")
+  dlrr <- D(D(l,"r"),"r")
+  dlrsigema <- D(D(l,"r"),"sigema")
+  dlsigema2 <- D(D(l,"sigema"),"sigema")
+  K <- beita[1] 
+  r <- beita[2] 
+  sigema <- beita[3]
+  a <- c(eval(dlkk),eval(dlkr),eval(dlksigema),eval(dlkr),eval(dlrr),
+         eval(dlrsigema),eval(dlksigema),eval(dlrsigema),eval(dlsigema2))
+  m <- matrix(a,byrow=TRUE,nrow=3)
+  return(m)
+}
+
+a <- matrix(c(1200,0.2,0.5),nrow=3)
+delta <- matrix(c(1,1,1),nrow=3)
+while(crossprod(delta,delta)>=0.001){
+  b <- a
+  c <- matrix(dl(a),nrow=3)
+  d <- solve(ddl(a))
+  a <- a - d%*%c
+  delta <- a - b
+}
+a
+solve(-ddl(a))
+```
